@@ -7,6 +7,9 @@
 #include <assimp/anim.h>
 #include <map>
 #include <assimp/scene.h>
+#include "ModelSkeleton.hpp"
+
+class Model;
 
 class ModelAnimation
 {
@@ -21,16 +24,18 @@ public:
 	};
 
 private:
-	const aiScene						*m_scene;
+	Model								&m_model;
 	std::map<std::string, Animation *>	m_animations;
 	std::string							m_currentAnimation;
+
+	float								m_time;
 
 //	static uint findRotation(float animationTime, const aiNodeAnim *node);
 //	static uint findPosition(float animationTime, const aiNodeAnim *node);
 //	static uint findScale(float animationTime, const aiNodeAnim *node);
 
 public:
-	ModelAnimation(const aiScene *scene);
+	ModelAnimation(Model &model);
 	~ModelAnimation();
 
 	void loadAnimation();
@@ -40,6 +45,8 @@ public:
 	static void interpolateNodeScale(aiVector3D &out, float animationTime, const aiNodeAnim *node);
 
 	Animation *getCurrentAnimation();
+
+	void update();
 
 	void play();
 };

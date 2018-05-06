@@ -8,7 +8,6 @@
 #include <GL/glew.h>
 #include <maths/Mat4.hpp>
 #include <map>
-#include "Model.hpp"
 #include "Shader.hpp"
 
 class Model;
@@ -47,4 +46,6 @@ public:
 	Node *getNode(const std::string &name);
 
 	void render(Shader &shader);
+
+	std::map<std::string, Node*> getNodes() const { return m_nodes; };
 };

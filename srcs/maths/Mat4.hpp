@@ -16,7 +16,16 @@ private:
 	T m_data[16];
 
 public:
-	Mat4() { for (int i = 0; i < 16; i++) m_data[i] = 0; };
+	Mat4()
+	{
+		for (int i = 0; i < 16; i++)
+			m_data[i] = 0;
+
+		m_data[0 + 0 * 4] = 1;
+		m_data[1 + 1 * 4] = 1;
+		m_data[2 + 2 * 4] = 1;
+		m_data[3 + 3 * 4] = 1;
+	};
 	Mat4(const T *data) { for (int i = 0; i < 16; i++) m_data[i] = data[i]; }
 	Mat4(const Mat4 *m) { for (int i = 0; i < 16; i++) m_data[i] = m[i]; }
 	~Mat4() = default;

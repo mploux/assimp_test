@@ -4,9 +4,11 @@
 
 #include <iostream>
 #include "ModelAnimation.hpp"
+#include "Model.hpp"
 
-ModelAnimation::ModelAnimation(const aiScene *scene)
-	: m_scene(scene)
+ModelAnimation::ModelAnimation(Model &model)
+	: m_model(model),
+	  m_time(0)
 {
 	m_currentAnimation = "null";
 }
@@ -25,15 +27,14 @@ const aiNodeAnim	*ModelAnimation::Animation::findNode(const std::string &name)
 
 void ModelAnimation::loadAnimation()
 {
-	for (std::size_t i = 0; i < m_scene->mNumAnimations; i++)
+	for (std::size_t i = 0; i < m_model.getScene()->mNumAnimations; i++)
 	{
-		const aiAnimation *aiAnim = m_scene->mAnimations[i];
+		const aiAnimation *aiAnim = m_model.getScene()->mAnimations[i];
 
 		if (i == 0)
 		{
 			std::cout << "Anim: " << aiAnim->mName.data << "\n";
 			m_currentAnimation = aiAnim->mName.data;
-
 		}
 
 		Animation *anim = new Animation();
@@ -58,9 +59,43 @@ ModelAnimation::Animation *ModelAnimation::getCurrentAnimation()
 	return m_animations[m_currentAnimation];
 }
 
+void ModelAnimation::update()
+{
+//	m_time += 0.001f;
+//	if (m_time >= 1)
+//		m_time = 0;
+//
+//	for (auto &p : m_model.getSkeleton()->getNodes())
+//	{
+//		ModelSkeleton::Node *node = p.second;
+//
+//		Animation *anim = getCurrentAnimation();
+//
+//		const aiNodeAnim *animNode = anim->findNode(node->name);
+//
+//		Mat4<float> animated = node->localMatrix;
+//		if (animNode)
+//		{
+//			aiVector3D Scaling;
+//			ModelAnimation::interpolateNodeScale(Scaling, m_time, animNode);
+//			Mat4<float> scaling = Mat4<float>::scale(Scaling.x, Scaling.y, Scaling.z);
+//			aiQuaternion RotationQ;
+//			ModelAnimation::interpolateNodeRotation(RotationQ, m_time, animNode);
+//			Mat4<float> rotation = Mat4<float>::mat4FromAssimp(aiMatrix4x4t<float>(RotationQ.GetMatrix()));
+//			aiVector3D Translation;
+//			ModelAnimation::interpolateNodePosition(Translation, m_time, animNode);
+//			Mat4<float> translation = Mat4<float>::translate(Translation.x, Translation.y, Translation.z);
+//			animated = translation * rotation * scaling;
+//		}
+//		Mat4<float> parent = Mat4<float>().identity();
+//		if (node->parent)
+//			parent = node->parent->animatedAbosluteMatrix;
+//		node->animatedAbosluteMatrix = parent * animated;
+//	}
+}
+
 void ModelAnimation::play()
 {
-
 }
 
 static uint findRotation(float animationTime, const aiNodeAnim *node)
@@ -120,7 +155,6 @@ void ModelAnimation::interpolateNodePosition(aiVector3D &out, float animationTim
 	const aiVector3D& start = node->mPositionKeys[index].mValue;
 	const aiVector3D& end = node->mPositionKeys[nextIndex].mValue;
 	out = start + (end - start) * factor;
-	out = out.Normalize();
 }
 
 void ModelAnimation::interpolateNodeScale(aiVector3D &out, float animationTime, const aiNodeAnim *node)
@@ -138,5 +172,4 @@ void ModelAnimation::interpolateNodeScale(aiVector3D &out, float animationTime, 
 	const aiVector3D& start = node->mScalingKeys[index].mValue;
 	const aiVector3D& end = node->mScalingKeys[nextIndex].mValue;
 	out = start + (end - start) * factor;
-	out = out.Normalize();
 }
