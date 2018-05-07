@@ -108,6 +108,11 @@ void Shader::setUniform(const char *name, Mat4<float> m)
 	glUniformMatrix4fv(getUniformLocation(name), 1, false, m.getData());
 }
 
+void Shader::setUniform(const char *name, glm::mat4 m)
+{
+	glUniformMatrix4fv(getUniformLocation(name), 1, false, &m[0][0]);
+}
+
 GLuint Shader::createShader(const char *source, int type)
 {
 	GLuint shader;

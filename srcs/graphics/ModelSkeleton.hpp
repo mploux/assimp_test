@@ -18,10 +18,10 @@ public:
 	struct Node
 	{
 		const char *name;
-		Mat4<float>	localMatrix;
-		Mat4<float>	absoluteMatrix;
-		Mat4<float>	animatedMatrix;
-		Mat4<float>	animatedAbosluteMatrix;
+		glm::mat4	localMatrix;
+		glm::mat4	absoluteMatrix;
+		glm::mat4	animatedMatrix;
+		glm::mat4	animatedAbosluteMatrix;
 		Node *parent;
 	};
 

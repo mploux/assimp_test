@@ -3,32 +3,36 @@
 //
 
 #include <iostream>
+#include <Core.hpp>
+#include <maths/glmUtils.hpp>
 #include "Model.hpp"
 
 Model::Model(const std::string &file)
 {
 	Assimp::Importer importer;
-	m_scene = importer.ReadFile(file.c_str(),
-											 aiProcess_Triangulate |
-											 aiProcess_FlipUVs |
-											 aiProcess_JoinIdenticalVertices);
+	m_scene = importer.ReadFile(file.c_str(), aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices);
+
 	if (!m_scene)
 	{
 		std::cerr << "Invalid model file !" << std::endl;
 		exit(EXIT_FAILURE);
 	}
 
+//	for (int i = 0; i < m_scene->mNumAnimations; i++)
+//	{
+//		std::cout << "Animation: " << m_scene->mAnimations[i]->mName.data << std::endl;
+//	}
+
 //	m_animations = new ModelAnimation(*this);
 //	m_animations->loadAnimation();
 
-//	m_skeleton = new ModelSkeleton(*this);
+	m_skeleton = new ModelSkeleton(*this);
 //	Mat4<float> identity = Mat4<float>().identity();
 //	readNodes(0, m_scene->mRootNode, identity);
-//	m_skeleton->buildMesh();
 
 	aiMatrix4x4 globalInverseTransform = m_scene->mRootNode->mTransformation;
-	globalInverseTransform.Inverse();
-	m_globalInverseTransform = Mat4<float>::mat4FromAssimp(globalInverseTransform);
+//	globalInverseTransform.Inverse();
+	m_globalInverseTransform = globalInverseTransform.Inverse();
 
 	m_numMeshes = m_scene->mNumMeshes;
 	m_vao = new GLuint[m_scene->mNumMeshes];
@@ -36,6 +40,7 @@ Model::Model(const std::string &file)
 	m_ubo = new GLuint[m_scene->mNumMeshes];
 	m_nbo = new GLuint[m_scene->mNumMeshes];
 	m_bbo = new GLuint[m_scene->mNumMeshes];
+	m_wbo = new GLuint[m_scene->mNumMeshes];
 	m_drawSize = new int[m_scene->mNumMeshes];
 
 	for (std::size_t k = 0; k < m_scene->mNumMeshes; k++)
@@ -50,9 +55,9 @@ Model::Model(const std::string &file)
 		positions.reserve(mesh->mNumVertices);
 		normals.reserve(mesh->mNumVertices);
 		texcoords.reserve(mesh->mNumVertices);
-		bones.reserve(mesh->mNumVertices);
+		bones.resize(mesh->mNumVertices);
 
-//		loadBones(k, mesh, bones);
+		loadBones(k, mesh, bones);
 
 		for (std::size_t i = 0; i < mesh->mNumVertices; i++)
 		{
@@ -80,6 +85,7 @@ Model::Model(const std::string &file)
 		std::vector<Vec3<float> >	indexedPpositions;
 		std::vector<Vec3<float> >	indexedNormals;
 		std::vector<Vec2<float> >	indexedTexcoords;
+		std::vector<VertexBoneData>	indexedBonesData;
 
 		for (std::size_t i = 0; i < mesh->mNumFaces; i++)
 		{
@@ -99,11 +105,15 @@ Model::Model(const std::string &file)
 					Vec2<float> texcoord = texcoords[index];
 					indexedTexcoords.push_back(texcoord);
 				}
+
+				indexedBonesData.push_back(bones[index]);
 			}
 		}
-
-		build(k, indexedPpositions, indexedNormals, indexedTexcoords, bones);
+		build(k, indexedPpositions, indexedNormals, indexedTexcoords, indexedBonesData);
 	}
+
+	boneTransform(0, m_transforms);
+	m_skeleton->buildMesh();
 }
 
 Model::~Model()
@@ -115,6 +125,7 @@ Model::~Model()
 	delete[] m_ubo;
 	delete[] m_nbo;
 	delete[] m_bbo;
+	delete[] m_wbo;
 }
 
 //void Model::VertexBoneData::addBoneData(uint boneID, float weight)
@@ -204,16 +215,18 @@ void Model::loadBones(uint meshIndex, const aiMesh* mesh, std::vector<VertexBone
 	}
 }
 
-Mat4<float> Model::boneTransform(float timeInSeconds, std::vector<Mat4<float> > &transforms)
+void Model::boneTransform(float timeInSeconds, std::vector<glm::mat4 > &transforms)
 {
-	Mat4<float> identity = Mat4<float>().identity();
+	aiMatrix4x4 identity;
+
+	std::cout << "Animation: " << m_scene->mAnimations[0]->mName.C_Str() << std::endl;
 
 	float ticksPerSecond = m_scene->mAnimations[0]->mTicksPerSecond != 0 ?
 						   m_scene->mAnimations[0]->mTicksPerSecond : 25.0f;
 	float timeInTicks = timeInSeconds * ticksPerSecond;
 	float animationTime = fmod(timeInTicks, m_scene->mAnimations[0]->mDuration);
 
-	readNodes(animationTime, m_scene->mRootNode, identity);
+	readNodes(0, m_scene->mRootNode, identity, nullptr);
 
 	transforms.resize(m_numBones);
 
@@ -234,40 +247,49 @@ const aiNodeAnim *Model::fineNodeAnim(const aiAnimation *anim, const std::string
 	return nullptr;
 }
 
-void Model::readNodes(float animationTime, const aiNode *node, Mat4<float> &parent)
+void Model::readNodes(float animationTime, const aiNode *node, aiMatrix4x4 &parent, ModelSkeleton::Node *p)
 {
 	std::string nodeName(node->mName.data);
 
 	const aiAnimation *anim = m_scene->mAnimations[0];
 	const aiNodeAnim *animNode = fineNodeAnim(anim, node->mName.data);
 
-	Mat4<float> boneTransform = Mat4<float>::mat4FromAssimp(node->mTransformation);
-	if (animNode)
-	{
-		aiVector3D Scaling;
-		ModelAnimation::interpolateNodeScale(Scaling, animationTime, animNode);
-		Mat4<float> scaling = Mat4<float>::scale(Scaling.x, Scaling.y, Scaling.z);
+	aiMatrix4x4 aiFinalBoneTransformation = parent * node->mTransformation;
+	glm::mat4 boneTransform = glm_utils::assimp_to_glm(node->mTransformation);
 
-		aiQuaternion RotationQ;
-		ModelAnimation::interpolateNodeRotation(RotationQ, animationTime, animNode);
-		Mat4<float> rotation = Mat4<float>::mat4FromAssimp(aiMatrix4x4t<float>(RotationQ.GetMatrix()));
+//	if (animNode)
+//	{
+//		aiVector3D Scaling;
+//		ModelAnimation::interpolateNodeScale(Scaling, animationTime, animNode);
+//		glm::mat4 scaling = glm::scale(glm::mat4(1.0f), glm::vec3(Scaling.x, Scaling.y, Scaling.z));
+//
+//		aiQuaternion RotationQ;
+//		ModelAnimation::interpolateNodeRotation(RotationQ, animationTime, animNode);
+//		glm::mat4 rotation = Mat4<float>::mat4FromAssimp(aiMatrix4x4t<float>(RotationQ.GetMatrix()));
+//
+//		aiVector3D Translation;
+//		ModelAnimation::interpolateNodePosition(Translation, animationTime, animNode);
+//		glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(Translation.x, Translation.y, Translation.z));
+////		boneTransform = translation * rotation * scaling;
+//	}
 
-		aiVector3D Translation;
-		ModelAnimation::interpolateNodePosition(Translation, animationTime, animNode);
-		Mat4<float> translation = Mat4<float>::translate(Translation.x, Translation.y, Translation.z);
-		boneTransform = translation * rotation * scaling;
-	}
-
-	Mat4<float> finalBoneTransformation = parent * boneTransform;
+	glm::mat4 finalBoneTransformation = glm_utils::assimp_to_glm(aiFinalBoneTransformation);
+	ModelSkeleton::Node *n = new ModelSkeleton::Node();
+	n->name = node->mName.C_Str();
+	n->animatedAbosluteMatrix = finalBoneTransformation;
+	n->parent = p;
+	m_skeleton->addNode(n);
 
 	if (m_boneMapping.find(nodeName) != m_boneMapping.end()) {
 		uint BoneIndex = m_boneMapping[nodeName];
-		Mat4<float> boneOffset = Mat4<float>::mat4FromAssimp(m_boneInfo[BoneIndex].boneOffset);
-		m_boneInfo[BoneIndex].finalTransformation = m_globalInverseTransform * finalBoneTransformation * boneOffset;
+		aiMatrix4x4 trs = m_globalInverseTransform * aiFinalBoneTransformation * m_boneInfo[BoneIndex].boneOffset;
+
+//		glm::mat4 boneOffset = glm_utils::assimp_to_glm(m_boneInfo[BoneIndex].boneOffset);
+		m_boneInfo[BoneIndex].finalTransformation = glm_utils::assimp_to_glm(trs);
 	}
 
 	for (std::size_t i = 0; i < node->mNumChildren; i++)
-		readNodes(animationTime, node->mChildren[i], finalBoneTransformation);
+		readNodes(animationTime, node->mChildren[i], aiFinalBoneTransformation, n);
 }
 
 void Model::build(int i, std::vector<Vec3<float> > &positions, std::vector<Vec3<float> > &normals, std::vector<Vec2<float> > &uvs, std::vector<VertexBoneData> &bones)
@@ -278,6 +300,8 @@ void Model::build(int i, std::vector<Vec3<float> > &positions, std::vector<Vec3<
 	GLfloat *vBuffer = new GLfloat[positions.size() * 3];
 	GLfloat *uBuffer = new GLfloat[uvs.size() * 2];
 	GLfloat *nBuffer = new GLfloat[normals.size() * 3];
+	GLuint *bBuffer = new GLuint[bones.size() * 4];
+	GLfloat *wBuffer = new GLfloat[bones.size() * 4];
 
 	for (std::size_t i = 0; i < positions.size(); i++)
 	{
@@ -296,6 +320,21 @@ void Model::build(int i, std::vector<Vec3<float> > &positions, std::vector<Vec3<
 		nBuffer[i * 3 + 1] = normals[i].getY();
 		nBuffer[i * 3 + 2] = normals[i].getZ();
 	}
+	for (std::size_t i = 0; i < bones.size(); i++)
+	{
+		wBuffer[i * 4 + 0] = bones[i].weights[0];
+		wBuffer[i * 4 + 1] = bones[i].weights[1];
+		wBuffer[i * 4 + 2] = bones[i].weights[2];
+		wBuffer[i * 4 + 3] = bones[i].weights[3];
+
+		bBuffer[i * 4 + 0] = bones[i].ids[0];
+		bBuffer[i * 4 + 1] = bones[i].ids[1];
+		bBuffer[i * 4 + 2] = bones[i].ids[2];
+		bBuffer[i * 4 + 3] = bones[i].ids[3];
+	}
+
+	std::cout << "Bones: " << bones.size() << std::endl;
+	std::cout << "Vertices: " << positions.size() << std::endl;
 
 	m_drawSize[i] = static_cast<GLsizei>(positions.size());
 
@@ -304,6 +343,7 @@ void Model::build(int i, std::vector<Vec3<float> > &positions, std::vector<Vec3<
 	glGenBuffers(1, &m_ubo[i]);
 	glGenBuffers(1, &m_nbo[i]);
 	glGenBuffers(1, &m_bbo[i]);
+	glGenBuffers(1, &m_wbo[i]);
 
 	glBindVertexArray(m_vao[i]);
 
@@ -322,18 +362,23 @@ void Model::build(int i, std::vector<Vec3<float> > &positions, std::vector<Vec3<
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * normals.size() * 3, nBuffer, GL_STATIC_DRAW);
 	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
-//	glEnableVertexAttribArray(3);
-//	glEnableVertexAttribArray(4);
-//	glBindBuffer(GL_ARRAY_BUFFER, m_bbo[i]);
-//	glBufferData(GL_ARRAY_BUFFER, sizeof(bones[0]) * bones.size(), &bones[0], GL_STATIC_DRAW);
-//	glVertexAttribIPointer(3, 4, GL_INT, sizeof(VertexBoneData), (const GLvoid*)0);
-//	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(VertexBoneData), (const GLvoid*)16);
+	glEnableVertexAttribArray(3);
+	glBindBuffer(GL_ARRAY_BUFFER, m_bbo[i]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLuint) * bones.size() * 4, bBuffer, GL_STATIC_DRAW);
+	glVertexAttribIPointer(3, 4, GL_UNSIGNED_INT, 0, nullptr);
+
+	glEnableVertexAttribArray(4);
+	glBindBuffer(GL_ARRAY_BUFFER, m_wbo[i]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * bones.size() * 4, wBuffer, GL_STATIC_DRAW);
+	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
 
 	glBindVertexArray(0);
 
 	delete[] vBuffer;
 	delete[] uBuffer;
 	delete[] nBuffer;
+	delete[] bBuffer;
+	delete[] wBuffer;
 }
 
 void Model::render(Shader &shader)
@@ -348,19 +393,26 @@ void Model::render(Shader &shader)
 //	m_skeleton->buildMesh();
 //	m_animations->update();
 
-//	std::vector<Mat4<float> > transforms;
-//	boneTransform(0, transforms);
 //
 //	for (int i = 0; i < bone)
 //
+
 	for (int i = 0; i < m_numMeshes; i++)
 	{
+//		std::cout << "Trs size: " << m_transforms.size() << std::endl;
+		for (int i = 0; i < m_transforms.size(); i++)
+		{
+			std::string uniform = "bonesTransforms[" + std::to_string(i) + "]";
+			shader.setUniform(uniform.c_str(), m_transforms[i]);
+//			shader.setUniform(uniform.c_str(), glm::mat4(1.0f));
+		}
+
 		glBindVertexArray(m_vao[i]);
 		glDrawArrays(GL_TRIANGLES, 0, m_drawSize[i]);
 		glBindVertexArray(0);
 	}
 
-//	glDisable(GL_DEPTH_TEST);
-//	m_skeleton->render(shader);
-//	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_DEPTH_TEST);
+	m_skeleton->render(shader);
+	glEnable(GL_DEPTH_TEST);
 }

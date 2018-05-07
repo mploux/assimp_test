@@ -22,14 +22,14 @@ void ModelSkeleton::addNode(Node *node)
 
 	if (node->parent != nullptr)
 	{
-		m_boneMesh.push_back(node->parent->animatedAbosluteMatrix.getData()[0 + 3 * 4]);
-		m_boneMesh.push_back(node->parent->animatedAbosluteMatrix.getData()[1 + 3 * 4]);
-		m_boneMesh.push_back(node->parent->animatedAbosluteMatrix.getData()[2 + 3 * 4]);
+		m_boneMesh.push_back(node->parent->animatedAbosluteMatrix[0][3]);
+		m_boneMesh.push_back(node->parent->animatedAbosluteMatrix[1][3]);
+		m_boneMesh.push_back(node->parent->animatedAbosluteMatrix[2][3]);
 		m_boneMesh.push_back(0.0);
 
-		m_boneMesh.push_back(node->animatedAbosluteMatrix.getData()[0 + 3 * 4]);
-		m_boneMesh.push_back(node->animatedAbosluteMatrix.getData()[1 + 3 * 4]);
-		m_boneMesh.push_back(node->animatedAbosluteMatrix.getData()[2 + 3 * 4]);
+		m_boneMesh.push_back(node->animatedAbosluteMatrix[0][3]);
+		m_boneMesh.push_back(node->animatedAbosluteMatrix[1][3]);
+		m_boneMesh.push_back(node->animatedAbosluteMatrix[2][3]);
 		m_boneMesh.push_back(1.0);
 
 		m_boneSize += 2;

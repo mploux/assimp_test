@@ -7,6 +7,7 @@
 #include <string>
 #include <GL/glew.h>
 #include <maths/Mat4.hpp>
+#include <glm/mat4x4.hpp>
 
 class Shader
 {
@@ -28,6 +29,7 @@ public:
 	void setUniform(const char *name, Vec3<float> v);
 	void setUniform(const char *name, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
 	void setUniform(const char *name, Mat4<float> m);
+	void setUniform(const char *name, glm::mat4 m);
 
 	inline void bind() { glUseProgram(m_program); };
 	inline void unbind() { glUseProgram(0); };

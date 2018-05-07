@@ -73,7 +73,7 @@ void Camera::update()
 
 Mat4<float> Camera::getTransformation() const
 {
-	Mat4<float> perspective = Mat4<float>::perspective(80.0f, 1280.0f / 720.0f, 0.1f, 500.0f);
+	Mat4<float> perspective = Mat4<float>::perspective(80.0f, 1280.0f / 720.0f, 0.1f, 10000.0f);
 	Mat4<float> translation = Mat4<float>::translate(m_position);
 	Mat4<float> rotation_x = Mat4<float>::rotate(Vec3<float>(1, 0, 0), m_rotation.getX());
 	Mat4<float> rotation_y = Mat4<float>::rotate(Vec3<float>(0, 1, 0), m_rotation.getY());

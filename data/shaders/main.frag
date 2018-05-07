@@ -8,6 +8,7 @@ uniform sampler2D tex;
 in vec2 v_texture;
 in vec3 v_normal;
 in vec3 frag_pos;
+in vec4 v_weight;
 
 void main()
 {
@@ -16,5 +17,5 @@ void main()
 
 	vec4 texture_color = texture(tex, v_texture);
 
-	out_color = vec4(vec3(1) * lightIntensity, 1.0);
+	out_color = vec4(v_weight.xyz * lightIntensity, 1.0);
 }

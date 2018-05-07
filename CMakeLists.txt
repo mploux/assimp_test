@@ -74,17 +74,13 @@ set(SOURCE_FILES
 	srcs/world/chunks/ChunkRendererG24.hpp
 	srcs/world/chunks/ChunkRenderer.cpp
 	srcs/world/chunks/ChunkRenderer.hpp
-        srcs/graphics/Model.cpp srcs/graphics/Model.hpp srcs/graphics/ModelSkeleton.cpp srcs/graphics/ModelSkeleton.hpp srcs/graphics/ModelBone.cpp srcs/graphics/ModelBone.hpp srcs/graphics/ModelAnimation.cpp srcs/graphics/ModelAnimation.hpp)
+        srcs/graphics/Model.cpp srcs/graphics/Model.hpp srcs/graphics/ModelSkeleton.cpp srcs/graphics/ModelSkeleton.hpp srcs/graphics/ModelBone.cpp srcs/graphics/ModelBone.hpp srcs/graphics/ModelAnimation.cpp srcs/graphics/ModelAnimation.hpp srcs/maths/glmUtils.hpp srcs/maths/glmUtils.cpp)
 
 find_package(OpenGL REQUIRED)
 
-find_package(Assimp REQUIRED)
-if (Assimp_FOUND)
-	message(STATUS  "Assimp includes directory: ${ASSIMP_INCLUDE_DIRS}")
-	message(STATUS  "Assimp libraries:  ${ASSIMP_LIBRARIES}")
-else()
-	message(SEND_ERROR  "Assimp was not found.")
-endif ()
+add_subdirectory(deps/glm)
+
+add_subdirectory(deps/assimp-4.1.0)
 
 add_definitions(-DGLEW_STATIC)
 
@@ -99,8 +95,8 @@ add_subdirectory(deps/glew/build/cmake)
 include_directories(srcs/)
 add_executable(${NAME} ${SOURCE_FILES})
 
-target_include_directories(${NAME} PUBLIC ${OPENGL_INCLUDE_DIR} ${ASSIMP_INCLUDE_DIRS} deps/glfw/include deps/glew/include)
-target_link_libraries(${NAME} ${OPENGL_gl_LIBRARY} ${ASSIMP_LIBRARIES} glfw glew)
+target_include_directories(${NAME} PUBLIC ${OPENGL_INCLUDE_DIR} deps/assimp-4.1.0/include deps/glm deps/glfw/include deps/glew/include)
+target_link_libraries(${NAME} ${OPENGL_gl_LIBRARY} assimp glm glfw glew)
 
 
 if (WIN32)

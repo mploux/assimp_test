@@ -17,6 +17,12 @@
 #include "ModelSkeleton.hpp"
 #include "ModelAnimation.hpp"
 
+#include <glm/vec3.hpp> // glm::vec3
+#include <glm/vec4.hpp> // glm::vec4
+#include <glm/mat4x4.hpp> // glm::mat4
+#include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
+#include <glm/gtc/constants.hpp>
+
 //class ModelSkeleton;
 //class ModelAnimation;
 
@@ -28,7 +34,7 @@ private:
 	struct BoneInfo
 	{
 		aiMatrix4x4 boneOffset;
-		Mat4<float> finalTransformation;
+		glm::mat4 finalTransformation;
 	};
 
 	struct VertexBoneData
@@ -60,7 +66,7 @@ private:
 
 	int					m_numMeshes;
 	GLsizei				*m_drawSize;
-	GLuint				*m_vao, *m_vbo, *m_ubo, *m_nbo, *m_bbo;
+	GLuint				*m_vao, *m_vbo, *m_ubo, *m_nbo, *m_wbo, *m_bbo;
 
 	ModelSkeleton		*m_skeleton;
 	ModelAnimation		*m_animations;
@@ -68,14 +74,15 @@ private:
 	std::map<std:: string, uint>	m_boneMapping;
 	uint							m_numBones;
 	std::vector<BoneInfo>			m_boneInfo;
+	std::vector<glm::mat4> 		m_transforms;
 
 	std::vector<float>	m_boneTransforms;
-	Mat4<float>			m_globalInverseTransform;
+	aiMatrix4x4			m_globalInverseTransform;
 
 	void loadBones(uint meshIndex, const aiMesh* mesh, std::vector<VertexBoneData>& bones);
-	Mat4<float> boneTransform(float timeInSeconds, std::vector<Mat4<float> > &transforms);
+	void boneTransform(float timeInSeconds, std::vector<glm::mat4 > &transforms);
 	const aiNodeAnim *fineNodeAnim(const aiAnimation *anim, const std::string &name);
-	void readNodes(float animationTime, const aiNode *node, Mat4<float> &parent);
+	void readNodes(float animationTime, const aiNode *node, aiMatrix4x4 &parent, ModelSkeleton::Node *p);
 
 public:
 	Model(const std::string &file);

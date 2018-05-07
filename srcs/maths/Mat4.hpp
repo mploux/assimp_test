@@ -184,6 +184,23 @@ public:
 		res.m_data[14] = mat.c4;
 		res.m_data[15] = mat.d4;
 
+//		res.m_data[0] = mat.a1;
+//		res.m_data[1] = mat.a2;
+//		res.m_data[2] = mat.a3;
+//		res.m_data[3] = mat.a4;
+//		res.m_data[4] = mat.b1;
+//		res.m_data[5] = mat.b2;
+//		res.m_data[6] = mat.b3;
+//		res.m_data[7] = mat.b4;
+//		res.m_data[8] = mat.c1;
+//		res.m_data[9] = mat.c2;
+//		res.m_data[10] = mat.c3;
+//		res.m_data[11] = mat.c4;
+//		res.m_data[12] = mat.d1;
+//		res.m_data[13] = mat.d2;
+//		res.m_data[14] = mat.d3;
+//		res.m_data[15] = mat.d4;
+
 		return res;
 	}
 };

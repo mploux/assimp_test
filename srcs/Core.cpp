@@ -18,7 +18,7 @@ Core::Core()
 	  m_camera(Camera(Vec3<float>(0, 0, 0))),
 	  m_input(Input(m_display)),
 	  m_texture(Texture("../data/textures/terrain.dds")),
-	  m_model(Model("../data/models/Low-Poly Spider/Only_Spider_with_Animations.blend"))
+	  m_model(Model("../data/models/BlackDragon/Dragon_Baked_Actions.fbx"))
 {
 	m_input.setupCallbacks();
 }
